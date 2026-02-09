@@ -493,10 +493,6 @@ def cmd_config(args):
         if 'connection_pool_size' in cfg:
             print(f"连接池大小: {cfg['connection_pool_size']}")
 
-        # 水印配置
-        if 'watermark_enabled' in cfg:
-            print(f"水印开关: {'开启' if cfg['watermark_enabled'] else '关闭'}")
-
         # 保存路径
         if 'save_path' in cfg:
             print(f"默认保存路径: {cfg['save_path']}")
@@ -525,10 +521,6 @@ def cmd_config(args):
             except ValueError:
                 print(f"错误: {key} 必须是数值")
                 return 1
-
-        # 布尔类型配置
-        elif key in ['watermark_enabled']:
-            value = value.lower() in ['true', '1', 'yes', 'on', '开启']
 
         # 字符串类型配置
         elif key in ['api_base_url', 'api_base_url_mode', 'save_path']:

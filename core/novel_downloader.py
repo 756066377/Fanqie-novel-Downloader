@@ -36,7 +36,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from config.config import CONFIG, print_lock, get_headers
-from utils.watermark import apply_watermark_to_chapter
 from utils.async_logger import async_print, safe_print
 from utils.messages import t
 from core.text_utils import (
@@ -1384,7 +1383,7 @@ def generate_filename(book_name: str, author_name: str, extension: str) -> str:
 
 def process_chapter_content(content):
     """处理章节内容"""
-    return _tu_process_chapter_content(content, watermark_func=apply_watermark_to_chapter)
+    return _tu_process_chapter_content(content)
 
 
 def _get_status_file_path(book_id: str) -> str:

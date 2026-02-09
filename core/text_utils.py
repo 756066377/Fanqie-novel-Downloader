@@ -125,8 +125,8 @@ def generate_filename(book_name: str, author_name: str, extension: str) -> str:
     return f"{safe_book_name}.{ext}"
 
 
-def process_chapter_content(content, watermark_func=None):
-    """清洗章节内容并可选应用水印。"""
+def process_chapter_content(content):
+    """清洗章节内容。"""
     if not content:
         return ""
 
@@ -146,6 +146,4 @@ def process_chapter_content(content, watermark_func=None):
             paragraphs.append(line)
     content = '\n\n'.join(paragraphs)
 
-    if watermark_func:
-        content = watermark_func(content)
     return content

@@ -421,6 +421,16 @@ class APIManager:
             self._tls.session = sess
         return sess
 
+    def _reset_session(self) -> None:
+        """重置当前线程的同步HTTP会话（用于连接异常后自愈）。"""
+        sess = getattr(self._tls, 'session', None)
+        if sess is not None:
+            try:
+                sess.close()
+            except Exception:
+                pass
+        self._tls.session = None
+
     def _get_async_state(self) -> dict:
         """获取线程局部的异步会话状态（避免跨线程/跨事件循环共享 aiohttp 会话）"""
         state = getattr(self._tls, 'async_state', None)
@@ -1179,32 +1189,30 @@ class APIManager:
                                 f"({attempt + 1}/{max_retries})"
                             )
 
-                        with session.get(
+                        response = session.get(
                             url,
                             params=mode,
                             headers=headers,
                             timeout=timeout,
-                            stream=True,
-                        ) as response:
-                            status_code = response.status_code
-                            resp_headers = dict(response.headers)
-                            resp_encoding = response.encoding
+                        )
+                        status_code = response.status_code
+                        resp_headers = dict(response.headers)
+                        resp_encoding = response.encoding
 
-                            if status_code == 400:
-                                # 该节点不支持此模式，尝试下一个模式
-                                break
-                            if status_code != 200:
-                                # 429/5xx 交给会话重试；这里额外做少量退避
-                                if status_code in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
-                                    time.sleep(min(2 ** attempt, 10))
-                                    continue
-                                break
+                        if status_code == 400:
+                            # 该节点不支持此模式，尝试下一个模式
+                            response.close()
+                            break
+                        if status_code != 200:
+                            response.close()
+                            # 429/5xx 交给会话重试；这里额外做少量退避
+                            if status_code in (429, 500, 502, 503, 504) and attempt < max_retries - 1:
+                                time.sleep(min(2 ** attempt, 10))
+                                continue
+                            break
 
-                            raw_buf = bytearray()
-                            for chunk in response.iter_content(chunk_size=131072):
-                                if chunk:
-                                    raw_buf.extend(chunk)
-                            raw_content = bytes(raw_buf)
+                        raw_content = response.content
+                        response.close()
 
                         if len(raw_content) < 1000:
                             break
@@ -1248,6 +1256,9 @@ class APIManager:
                         break
 
                     except transient_errors as e:
+                        # 连接类异常可能来自失效连接池，重置会话以便下次尝试新连接
+                        self._reset_session()
+                        session = self._get_session()
                         if attempt < max_retries - 1:
                             time.sleep(min(2 ** attempt, 10))
                             continue
